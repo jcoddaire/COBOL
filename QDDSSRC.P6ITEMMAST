@@ -1,0 +1,13 @@
+      *****************************************************************
+      ***       PROJECT 6 ITEM MASTER FILE                          ***
+      ***       PHYSICAL FILE: P6ITEMMAST                           ***
+      ***       Access Path: KEYED                                  ***
+      *****************************************************************
+     A                                      UNIQUE
+     A          R P6ITEMMR                  TEXT('P6 ITEM MASTER RECORD')
+     A            MITEMNO        5A         ALIAS(M_ITEM_NUMBER)
+     A            MITEMDESC     15A         ALIAS(M_ITEM_DESCRIPTION)
+     A            MITEMCOST      7S 2       ALIAS(M_ITEM_COST)
+     A            MITEMPRICE     7S 2       ALIAS(M_ITEM_PRICE)
+     A            MITEMVNRCD     3A         ALIAS(M_ITEM_VENDOR_CODE)
+     A          K MITEMNO

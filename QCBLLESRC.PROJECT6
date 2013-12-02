@@ -1,0 +1,265 @@
+       PROCESS APOST.
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.       PROJECT6.
+       AUTHOR.           JACOB CODDAIRE.
+      **********************************************************
+      *                                                        *
+      * This program reads in a transaction file, then commits *
+      * the transactions to a Master File. It then outputs a   *
+      * report detailing the transactions that took place, and *
+      * the result of those transactions.                      *
+      *                                                        *
+      **********************************************************
+
+       ENVIRONMENT DIVISION.
+
+       INPUT-OUTPUT SECTION.
+
+       FILE-CONTROL.
+           SELECT ITEM-TRANSACTION-FILE
+               ASSIGN TO DISK-P6ITEMTRAN.
+
+           SELECT ITEM-MASTER-FILE
+              ASSIGN TO DATABASE-P6ITEMMAST
+              ORGANIZATION IS INDEXED
+              ACCESS IS RANDOM
+              RECORD KEY IS EXTERNALLY-DESCRIBED-KEY.
+
+           SELECT CONTROL-LISTING-REPORT-FILE
+              ASSIGN TO PRINTER-QPRINT.
+
+       DATA DIVISION.
+
+       FILE SECTION.
+
+       FD ITEM-TRANSACTION-FILE.
+       COPY P6TRANSRC OF CIS253LB-QCBLLESRC.
+
+       FD ITEM-MASTER-FILE.
+
+       01 ITEM-MASTER-RECORD.
+       COPY DD-P6ITEMMR OF P6ITEMMAST.
+
+       FD CONTROL-LISTING-REPORT-FILE.
+       01 PRINT-RECORD-OUT                 PIC X(080).
+
+       WORKING-STORAGE SECTION.
+
+       01  WS-CONTROL-FIELDS.
+
+           05 WS-LINE-COUNTER              PIC 9(3) PACKED-DECIMAL
+                                           VALUE 0.
+           05 WS-LINE-LIMIT                PIC 9(3) PACKED-DECIMAL
+                                           VALUE 60.
+           05 WS-PAGE-COUNTER              PIC 9(3) PACKED-DECIMAL
+                                           VALUE 0.
+           05 WS-RECORD-NUMBER             PIC 9(003) VALUE ZEROES.
+           05 ARE-THERE-MORE-RECORDS       PIC X(003) VALUE 'YES'.
+              88 MORE-RECORDS              VALUE 'YES'.
+              88 NO-MORE-RECORDS           VALUE 'NO '.
+
+       01  WS-CURRENT-DATE.
+           05 WS-CURRENT-YEAR              PIC 9(004).
+           05 WS-CURRENT-MONTH             PIC 9(002).
+           05 WS-CURRENT-DAY               PIC 9(002).
+
+       01  WS-MESSAGES.
+           05 WS-MESSAGE-1                 PIC X(037) VALUE
+                                           'INVALID ACTION CODE'.
+           05 WS-MESSAGE-2                 PIC X(037) VALUE
+                                       'RECORD ALREADY EXISTS FOR ADD'.
+           05 WS-MESSAGE-3                 PIC X(037) VALUE
+                        'RECORD NOT FOUND FOR CHANGE OR DELETE'.
+           05 WS-MESSAGE-4                 PIC X(037) VALUE
+                                           'RECORD ADDED'.
+           05 WS-MESSAGE-5                 PIC X(037) VALUE
+                                           'RECORD CHANGED'.
+           05 WS-MESSAGE-6                 PIC X(037) VALUE
+                                           'RECORD DELETED'.
+           05 WS-MESSAGE-7                 PIC X(037) VALUE
+                                           'I/O ERROR'.
+
+       01  HEADER-01.
+           05                            PIC X(5) VALUE SPACES.
+           05                            PIC X(8) VALUE
+           'PROJECT6'.
+           05                            PIC X(18) VALUE SPACES.
+           05 HL-PROGRAMMER              PIC X(11) VALUE
+           'J. CODDAIRE'.
+
+       01  HEADER-02.
+           05                            PIC X(4)  VALUE SPACES.
+           05 HL-CURRENT-MONTH           PIC 9(2).
+           05                            PIC X     VALUE '/'.
+           05 HL-CURRENT-DAY             PIC 9(2).
+           05                            PIC X     VALUE '/'.
+           05 HL-CURRENT-YEAR            PIC 9(4).
+           05                            PIC X(2)  VALUE SPACES.
+           05 HL-REPORT-NAME             PIC X(43) VALUE
+               'CONTROL LISTING FOR ITEM MASTER FILE UPDATE'.
+           05                            PIC X(4)  VALUE SPACES.
+           05                            PIC X(5)  VALUE 'PAGE '.
+           05 HL-PAGE                    PIC Z9    VALUE ZERO.
+
+       01  HEADER-03.
+           05                            PIC X(05) VALUE SPACES.
+           05                            PIC X(06) VALUE 'RECORD'.
+           05                            PIC X(05) VALUE SPACES.
+           05                            PIC X(06) VALUE 'ACTION'.
+           05                            PIC X(04) VALUE SPACES.
+           05                            PIC X(04) VALUE 'ITEM'.
+
+       01  HEADER-04.
+           05                            PIC X(05) VALUE SPACES.
+           05                            PIC X(06) VALUE 'NUMBER'.
+           05                            PIC X(06) VALUE SPACES.
+           05                            PIC X(04) VALUE 'CODE'.
+           05                            PIC X(04) VALUE SPACES.
+           05                            PIC X(06) VALUE 'NUMBER'.
+           05                            PIC X(05) VALUE SPACES.
+           05                            PIC X(07) VALUE 'MESSAGE'.
+
+       01  DETAIL-LINE.
+           05                            PIC X(006) VALUE SPACES.
+           05 DL-RECORD-NUMBER           PIC ZZ9.
+           05                            PIC X(010) VALUE SPACES.
+           05 DL-ACTION-CODE             PIC X.
+           05                            PIC X(005) VALUE SPACES.
+           05 DL-ITEM-NUMBER             PIC X(005).
+           05                            PIC X(003) VALUE SPACES.
+           05 DL-MESSAGE                 PIC X(037) VALUE SPACES.
+
+       PROCEDURE DIVISION.
+
+       000-MAIN-MODULE.
+
+           PERFORM 100-INITIALIZE-RTN.
+           PERFORM 200-PROCESS-RECORD-RTN
+               UNTIL NO-MORE-RECORDS.
+           PERFORM 300-TERMINATION-RTN.
+           STOP RUN.
+
+       100-INITIALIZE-RTN.
+           PERFORM 110-OPEN-FILES.
+           PERFORM 120-GET-DATE.
+           PERFORM 205-READ-FILE-RTN.
+           PERFORM 290-HEADING-RTN.
+
+       110-OPEN-FILES.
+           OPEN INPUT  ITEM-TRANSACTION-FILE
+                I-O    ITEM-MASTER-FILE
+                OUTPUT CONTROL-LISTING-REPORT-FILE.
+
+       120-GET-DATE.
+           ACCEPT WS-CURRENT-DATE FROM DATE YYYYMMDD.
+           MOVE WS-CURRENT-MONTH TO HL-CURRENT-MONTH.
+           MOVE WS-CURRENT-DAY TO HL-CURRENT-DAY.
+           MOVE WS-CURRENT-YEAR TO HL-CURRENT-YEAR.
+
+       200-PROCESS-RECORD-RTN.
+           EVALUATE TRUE
+               WHEN ADD-NEW-ITEM-RECORD
+                    PERFORM 210-ADD-NEW-RECORD-RTN
+               WHEN CHANGE-ITEM-RECORD
+                    PERFORM 220-CHANGE-RECORD-RTN
+               WHEN DELETE-ITEM-RECORD
+                    PERFORM 230-DELETE-RECORD-RTN
+           END-EVALUATE.
+           PERFORM 240-DETAIL-RTN.
+           PERFORM 205-READ-FILE-RTN.
+
+       205-READ-FILE-RTN.
+           READ ITEM-TRANSACTION-FILE
+               AT END
+                  SET NO-MORE-RECORDS TO TRUE
+           END-READ.
+
+       210-ADD-NEW-RECORD-RTN.
+           MOVE TR-ITEM-NUMBER TO M-ITEM-NUMBER.
+           READ ITEM-MASTER-FILE
+                INVALID KEY
+                   PERFORM 215-WRITE-NEW-RECORD-RTN
+                NOT INVALID KEY
+                   MOVE WS-MESSAGE-2 TO DL-MESSAGE
+           END-READ.
+
+       215-WRITE-NEW-RECORD-RTN.
+           MOVE TR-ITEM-DESCRIPTION TO M-ITEM-DESCRIPTION.
+           MOVE TR-ITEM-COST TO M-ITEM-COST.
+           MOVE TR-ITEM-PRICE TO M-ITEM-PRICE.
+           MOVE TR-ITEM-VENDOR-CODE TO M-ITEM-VENDOR-CODE.
+           MOVE WS-MESSAGE-4 TO DL-MESSAGE.
+           WRITE ITEM-MASTER-RECORD
+               INVALID KEY
+                  MOVE WS-MESSAGE-7 TO DL-MESSAGE
+           END-WRITE.
+
+       220-CHANGE-RECORD-RTN.
+           MOVE TR-ITEM-NUMBER TO M-ITEM-NUMBER.
+           READ ITEM-MASTER-FILE
+                INVALID KEY
+                   MOVE WS-MESSAGE-3 TO DL-MESSAGE
+                NOT INVALID KEY
+                   PERFORM 225-REWRITE-RECORD-RTN
+           END-READ.
+
+       225-REWRITE-RECORD-RTN.
+           MOVE TR-ITEM-DESCRIPTION TO M-ITEM-DESCRIPTION.
+           MOVE TR-ITEM-COST TO M-ITEM-COST.
+           MOVE TR-ITEM-PRICE TO M-ITEM-PRICE.
+           MOVE TR-ITEM-VENDOR-CODE TO M-ITEM-VENDOR-CODE.
+           MOVE WS-MESSAGE-5 TO DL-MESSAGE.
+           REWRITE ITEM-MASTER-RECORD
+              INVALID KEY
+                  MOVE WS-MESSAGE-7 TO DL-MESSAGE
+           END-REWRITE.
+
+       230-DELETE-RECORD-RTN.
+           MOVE TR-ITEM-NUMBER TO M-ITEM-NUMBER.
+           READ ITEM-MASTER-FILE
+                INVALID KEY
+                   MOVE WS-MESSAGE-3 TO DL-MESSAGE
+                NOT INVALID KEY
+                   MOVE WS-MESSAGE-6 TO DL-MESSAGE
+                   DELETE ITEM-MASTER-FILE
+                       INVALID KEY
+                          MOVE WS-MESSAGE-7 TO DL-MESSAGE
+                   END-DELETE
+           END-READ.
+
+       240-DETAIL-RTN.
+           ADD 1 TO WS-RECORD-NUMBER.
+           MOVE WS-RECORD-NUMBER TO DL-RECORD-NUMBER.
+           MOVE TR-ACTION-CODE TO DL-ACTION-CODE.
+           MOVE TR-ITEM-NUMBER TO DL-ITEM-NUMBER.
+           IF WS-LINE-COUNTER >= WS-LINE-LIMIT
+              PERFORM 290-HEADING-RTN
+           END-IF.
+           WRITE PRINT-RECORD-OUT FROM DETAIL-LINE
+               AFTER ADVANCING 1 LINE.
+           ADD 2 TO WS-LINE-COUNTER.
+
+       290-HEADING-RTN.
+           ADD 1 TO WS-PAGE-COUNTER.
+           MOVE WS-PAGE-COUNTER TO HL-PAGE.
+           IF WS-PAGE-COUNTER > 1
+               WRITE PRINT-RECORD-OUT FROM HEADER-01
+                   AFTER ADVANCING PAGE
+           ELSE
+               WRITE PRINT-RECORD-OUT FROM HEADER-01
+           END-IF.
+           WRITE PRINT-RECORD-OUT FROM HEADER-02
+               AFTER ADVANCING 1 LINE.
+           WRITE PRINT-RECORD-OUT FROM HEADER-03
+               AFTER ADVANCING 2 LINES.
+           WRITE PRINT-RECORD-OUT FROM HEADER-04
+               AFTER ADVANCING 1 LINE.
+           MOVE 6 TO WS-LINE-COUNTER.
+
+       300-TERMINATION-RTN.
+           PERFORM 310-CLOSE-FILES.
+
+       310-CLOSE-FILES.
+           CLOSE ITEM-TRANSACTION-FILE
+                 ITEM-MASTER-FILE
+                 CONTROL-LISTING-REPORT-FILE.

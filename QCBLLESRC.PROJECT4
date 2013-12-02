@@ -1,0 +1,252 @@
+       PROCESS APOST.
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.       PROJECT4.
+       AUTHOR.           JACOB CODDAIRE.
+      **********************************************************
+      * This program reads in a logical file of student records*
+      * and computes the GPA for each class of each school. The*
+      * results of these computations are outputted to a report*
+      **********************************************************
+
+       ENVIRONMENT DIVISION.
+
+       INPUT-OUTPUT SECTION.
+
+       FILE-CONTROL.
+           SELECT STUDENT-FILE
+               ASSIGN TO DATABASE-D1204L
+               ORGANIZATION IS INDEXED
+               ACCESS IS SEQUENTIAL
+               RECORD KEY IS EXTERNALLY-DESCRIBED-KEY
+               WITH DUPLICATES.
+
+           SELECT STUDENT-REPORT
+               ASSIGN TO PRINTER-QPRINT.
+
+       DATA DIVISION.
+
+       FILE SECTION.
+
+       FD STUDENT-FILE.
+
+       01 STUDENT-RECORD.
+       COPY DD-D1204R OF CODDAIRJLB-D1204L.
+
+       FD STUDENT-REPORT.
+
+       01  PRINT-RECORD-OUT              PIC X(80).
+
+       WORKING-STORAGE SECTION.
+
+       01  WS-CONTROL-FIELDS.
+           05 ARE-THERE-MORE-RECORDS     PIC X(3) VALUE 'YES'.
+           05 WS-LINE-COUNTER            PIC 9(3) PACKED-DECIMAL
+                                         VALUE 60.
+           05 WS-LINE-LIMIT              PIC 9(3) PACKED-DECIMAL
+                                         VALUE 60.
+           05 WS-PAGE-COUNTER            PIC 9(3) PACKED-DECIMAL
+                                         VALUE ZERO.
+
+           05 WS-PREVIOUS-SCHOOL         PIC 9     VALUE ZERO.
+           05 WS-CLASS-OUT               PIC X(9)  VALUE SPACES.
+           05 WS-GPA-TOTAL               PIC 9V99  VALUE ZERO.
+           05 WS-GPA-OUT                 PIC 9V99  VALUE ZERO.
+
+       01  WS-STUDENT-GPA.
+           05 FRESH-GPA                  PIC 999V99 COMP-3 VALUE ZERO.
+           05 SOPHO-GPA                  PIC 999V99 COMP-3 VALUE ZERO.
+           05 JUNIOR-GPA                 PIC 999V99 COMP-3 VALUE ZERO.
+           05 SENIOR-GPA                 PIC 999V99 COMP-3 VALUE ZERO.
+
+       01  WS-STUDENT-CLASS              PIC 9(001).
+           88 FRESH-CLASS                VALUE 1.
+           88 SOPHO-CLASS                VALUE 2.
+           88 JUNIOR-CLASS               VALUE 3.
+           88 SENIOR-CLASS               VALUE 4.
+
+       01  WS-STUDENT-COUNT.
+           05 FRESH-COUNT                PIC 9(3) PACKED-DECIMAL
+                                         VALUE ZERO.
+           05 SOPHO-COUNT                PIC 9(3) PACKED-DECIMAL
+                                         VALUE ZERO.
+           05 JUNIOR-COUNT               PIC 9(3) PACKED-DECIMAL
+                                         VALUE ZERO.
+           05 SENIOR-COUNT               PIC 9(3) PACKED-DECIMAL
+                                         VALUE ZERO.
+
+       01  WS-CURRENT-DATE.
+           05 WS-CURRENT-YEAR            PIC 9(4).
+           05 WS-CURRENT-MONTH           PIC 9(2).
+           05 WS-CURRENT-DAY             PIC 9(2).
+
+       01  HEADER-01.
+           05                            PIC X(9)  VALUE SPACES.
+           05 HL-REPORT-NAME             PIC X(18) VALUE
+           'STUDENT GPA REPORT'.
+           05                            PIC X(6)  VALUE SPACES.
+           05 HL-CURRENT-MONTH           PIC 9(2).
+           05                            PIC X     VALUE '/'.
+           05 HL-CURRENT-DAY             PIC 9(2).
+           05                            PIC X     VALUE '/'.
+           05 HL-CURRENT-YEAR            PIC 9(4).
+           05                            PIC X(4)  VALUE SPACES.
+           05                            PIC X(5)  VALUE 'PAGE '.
+           05 HL-PAGE                    PIC Z9    VALUE ZERO.
+           05                            PIC X(4)  VALUE SPACES.
+           05 HL-PROGRAMMER              PIC X(11) VALUE
+           'J. CODDAIRE'.
+
+       01  HEADER-02.
+           05                            PIC X(4) VALUE SPACES.
+           05                            PIC X(8) VALUE 'SCHOOL: '.
+           05 HL-SCHOOL                  PIC X(15).
+
+       01  HEADER-03.
+           05                            PIC X(9)  VALUE SPACES.
+           05                            PIC X(5)  VALUE 'CLASS'.
+           05                            PIC X(15) VALUE SPACES.
+           05                            PIC X(11) VALUE
+                                         'AVERAGE GPA'.
+       01  DETAIL-LINE.
+           05                            PIC X(8) VALUE SPACES.
+           05 DL-CLASS-NAME              PIC X(9).
+           05                            PIC X(14) VALUE SPACES.
+           05 DL-GPA                     PIC 9.99.
+
+       PROCEDURE DIVISION.
+
+       000-MAIN-MODULE.
+
+           PERFORM 100-INITIALIZE-RTN.
+           PERFORM 200-PROCESS-RECORD-RTN
+               UNTIL ARE-THERE-MORE-RECORDS = 'NO '.
+           PERFORM 300-TERMINATION-RTN.
+           STOP RUN.
+
+       100-INITIALIZE-RTN.
+           PERFORM 110-OPEN-FILES.
+           PERFORM 120-GET-DATE.
+           PERFORM 210-READ-RTN.
+           MOVE PE-SCHOOL TO WS-PREVIOUS-SCHOOL.
+           PERFORM 220-HEADING-RTN.
+
+       110-OPEN-FILES.
+           OPEN INPUT STUDENT-FILE
+                OUTPUT STUDENT-REPORT.
+
+       120-GET-DATE.
+           ACCEPT WS-CURRENT-DATE FROM DATE YYYYMMDD.
+           MOVE WS-CURRENT-MONTH TO HL-CURRENT-MONTH.
+           MOVE WS-CURRENT-DAY TO HL-CURRENT-DAY.
+           MOVE WS-CURRENT-YEAR TO HL-CURRENT-YEAR.
+
+       200-PROCESS-RECORD-RTN.
+           IF PE-SCHOOL NOT = WS-PREVIOUS-SCHOOL
+              PERFORM 250-BREAK-RTN
+           END-IF
+           PERFORM 240-GPA-RTN.
+           PERFORM 210-READ-RTN.
+
+       210-READ-RTN.
+           READ STUDENT-FILE
+               AT END
+                  MOVE 'NO ' TO ARE-THERE-MORE-RECORDS
+           END-READ.
+
+       220-HEADING-RTN.
+           ADD 1 TO WS-PAGE-COUNTER.
+           MOVE WS-PAGE-COUNTER TO HL-PAGE.
+           MOVE SPACES TO HL-SCHOOL.
+           IF WS-PREVIOUS-SCHOOL = 1
+              MOVE 'BUSINESS' TO HL-SCHOOL
+           END-IF.
+           IF WS-PREVIOUS-SCHOOL = 2
+              MOVE 'LIBERAL ARTS' TO HL-SCHOOL
+           END-IF.
+           IF WS-PREVIOUS-SCHOOL = 3
+              MOVE 'ENGINEERING' TO HL-SCHOOL
+           END-IF.
+           WRITE PRINT-RECORD-OUT FROM HEADER-01
+               AFTER ADVANCING PAGE.
+           WRITE PRINT-RECORD-OUT FROM HEADER-02
+               AFTER ADVANCING 2 LINES.
+           WRITE PRINT-RECORD-OUT FROM HEADER-03
+               AFTER ADVANCING 2 LINES.
+           MOVE SPACES TO PRINT-RECORD-OUT.
+           WRITE PRINT-RECORD-OUT
+               AFTER ADVANCING 1 LINE.
+           MOVE 8 TO WS-LINE-COUNTER.
+
+       230-DETAIL-RTN.
+           MOVE WS-CLASS-OUT TO DL-CLASS-NAME.
+           MOVE WS-GPA-OUT TO DL-GPA.
+           WRITE PRINT-RECORD-OUT FROM DETAIL-LINE
+           AFTER ADVANCING 1 LINE.
+           MOVE SPACES TO WS-CLASS-OUT.
+           MOVE ZEROES TO WS-GPA-OUT.
+           MOVE SPACES TO DL-CLASS-NAME.
+           MOVE ZEROES TO DL-GPA.
+
+       240-GPA-RTN.
+           EVALUATE PE-CLASS
+           WHEN 1
+               ADD PE-GPA TO FRESH-GPA
+               ADD 1 TO FRESH-COUNT
+           WHEN 2
+               ADD PE-GPA TO SOPHO-GPA
+               ADD 1 TO SOPHO-COUNT
+           WHEN 3
+               ADD PE-GPA TO JUNIOR-GPA
+               ADD 1 TO JUNIOR-COUNT
+           WHEN 4
+               ADD PE-GPA TO SENIOR-GPA
+               ADD 1 TO SENIOR-COUNT
+           END-EVALUATE.
+
+       250-BREAK-RTN.
+           IF FRESH-COUNT NOT = ZERO
+              MOVE 'FRESHMEN' TO WS-CLASS-OUT
+              COMPUTE WS-GPA-TOTAL = FRESH-GPA / FRESH-COUNT
+              MOVE WS-GPA-TOTAL TO WS-GPA-OUT
+              PERFORM 230-DETAIL-RTN
+              MOVE ZEROES TO WS-GPA-TOTAL
+           END-IF.
+           IF SOPHO-COUNT NOT = ZERO
+              MOVE 'SOPHOMORE' TO WS-CLASS-OUT
+              COMPUTE WS-GPA-TOTAL = SOPHO-GPA / SOPHO-COUNT
+              MOVE WS-GPA-TOTAL TO WS-GPA-OUT
+              PERFORM 230-DETAIL-RTN
+              MOVE ZEROES TO WS-GPA-TOTAL
+           END-IF.
+           IF JUNIOR-COUNT NOT = ZERO
+              MOVE 'JUNIOR' TO WS-CLASS-OUT
+              COMPUTE WS-GPA-TOTAL = JUNIOR-GPA / JUNIOR-COUNT
+              MOVE WS-GPA-TOTAL TO WS-GPA-OUT
+              PERFORM 230-DETAIL-RTN
+              MOVE ZEROES TO WS-GPA-TOTAL
+           END-IF.
+           IF SENIOR-COUNT NOT = ZERO
+              MOVE 'SENIOR' TO WS-CLASS-OUT
+              COMPUTE WS-GPA-TOTAL = SENIOR-GPA / SENIOR-COUNT
+              MOVE WS-GPA-TOTAL TO WS-GPA-OUT
+              PERFORM 230-DETAIL-RTN
+              MOVE ZEROES TO WS-GPA-TOTAL
+           END-IF.
+           ADD 1 TO WS-PREVIOUS-SCHOOL.
+           MOVE ZEROES TO FRESH-COUNT.
+           MOVE ZEROES TO SOPHO-COUNT.
+           MOVE ZEROES TO JUNIOR-COUNT.
+           MOVE ZEROES TO SENIOR-COUNT.
+           MOVE ZEROES TO FRESH-GPA.
+           MOVE ZEROES TO SOPHO-GPA.
+           MOVE ZEROES TO JUNIOR-GPA.
+           MOVE ZEROES TO SENIOR-GPA.
+           PERFORM 220-HEADING-RTN.
+
+       300-TERMINATION-RTN.
+           PERFORM 250-BREAK-RTN.
+           PERFORM 310-CLOSE-FILES.
+
+       310-CLOSE-FILES.
+           CLOSE STUDENT-FILE
+                 STUDENT-REPORT.

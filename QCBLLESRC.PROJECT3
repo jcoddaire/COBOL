@@ -1,0 +1,192 @@
+       PROCESS APOST.
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.       PROJECT3.
+       AUTHOR.           JACOB CODDAIRE.
+      **********************************************************
+      * This program reads the Employee Tuition File and       *
+      * outputs a well-formatted Employee Tuition Rebate Report*
+      * and includes the Employee Name, Tuition Amount, and    *
+      * Tuition Rebate values. It also includes Total Amounts. *
+      **********************************************************
+
+       ENVIRONMENT DIVISION.
+
+       INPUT-OUTPUT SECTION.
+
+       FILE-CONTROL.
+           SELECT STUDENT-FILE
+               ASSIGN TO DISK-D0805P.
+
+           SELECT STUDENT-REPORT
+               ASSIGN TO PRINTER-QPRINT.
+
+       DATA DIVISION.
+
+       FILE SECTION.
+
+       FD STUDENT-FILE.
+
+       01 STUDENT-RECORD.
+       COPY DD-D0805R OF D0805P.
+
+       FD STUDENT-REPORT.
+
+       01  PRINT-RECORD-OUT              PIC X(80).
+
+       WORKING-STORAGE SECTION.
+
+       01  WS-CONTROL-FIELDS.
+           05 ARE-THERE-MORE-RECORDS     PIC X(3) VALUE 'YES'.
+           05 WS-LINE-COUNTER            PIC 9(3) PACKED-DECIMAL
+                                         VALUE 60.
+           05 WS-LINE-LIMIT              PIC 9(3) PACKED-DECIMAL
+                                         VALUE 60.
+           05 WS-PAGE-COUNTER            PIC 9(3) PACKED-DECIMAL
+                                         VALUE ZERO.
+           05 WS-REBATE                  PIC 9(5)V99
+                                         PACKED-DECIMAL
+                                         VALUE ZERO.
+           05 WS-REBATE-TOTAL            PIC 9(5)V99
+                                         PACKED-DECIMAL
+                                         VALUE ZERO.
+           05 WS-TUITION-TOTAL           PIC 9(5)V99
+                                         PACKED-DECIMAL
+                                         VALUE ZERO.
+
+       01  WS-CURRENT-DATE.
+           05 WS-CURRENT-YEAR            PIC 9(4).
+           05 WS-CURRENT-MONTH           PIC 9(2).
+           05 WS-CURRENT-DAY             PIC 9(2).
+
+       01  HEADER-01.
+           05 PIC X(4) VALUE SPACES.
+           05 HL-CURRENT-MONTH           PIC 9(2).
+           05                            PIC X     VALUE '/'.
+           05 HL-CURRENT-DAY             PIC 9(2).
+           05                            PIC X     VALUE '/'.
+           05 HL-CURRENT-YEAR            PIC 9(4).
+           05                            PIC X(6) VALUE SPACES.
+           05 HL-REPORT-NAME             PIC X(45) VALUE
+           'EMPLOYEE TUITION REBATE REPORT-JACOB CODDAIRE'.
+           05                            PIC X(6) VALUE SPACES.
+           05                            PIC X(5) VALUE 'PAGE '.
+           05 HL-PAGE                    PIC Z9   VALUE ZERO.
+
+       01  HEADER-02.
+           05                            PIC X(10) VALUE SPACES.
+           05                            PIC X(13) VALUE
+                                         'EMPLOYEE NAME'.
+           05                            PIC X(15) VALUE SPACES.
+           05                            PIC X(14) VALUE
+                                         'TUITION AMOUNT'.
+           05                            PIC X(5)  VALUE SPACES.
+           05                            PIC X(14) VALUE
+                                         'TUITION REBATE'.
+
+       01  DETAIL-LINE.
+           05                            PIC X(10) VALUE SPACES.
+           05 DL-EMPLOYEE-NAME           PIC X(20).
+           05                            PIC X(10) VALUE SPACES.
+           05 DL-TUITION                 PIC ZZZ9.99.
+           05                            PIC X(14) VALUE SPACES.
+           05 DL-REBATE                  PIC ZZ9.99.
+
+       01   FOOTER-LINE.
+            05                           PIC X(6) VALUE SPACES.
+            05 FL-DESCRIPTION            PIC X(22) VALUE
+                                      'TOTAL TUITION & REBATE'.
+            05                           PIC X(10) VALUE SPACES.
+            05 FL-TUITION                PIC $$$,$$$.99.
+            05                           PIC X(10) VALUE SPACES.
+            05 FL-REBATE                 PIC $$$,$$$.99.
+
+       PROCEDURE DIVISION.
+
+       000-MAIN-MODULE.
+
+           PERFORM 100-INITIALIZE-RTN.
+           PERFORM 200-PROCESS-RECORD-RTN
+               UNTIL ARE-THERE-MORE-RECORDS = 'NO '.
+           PERFORM 300-TERMINATION-RTN.
+           STOP RUN.
+
+       100-INITIALIZE-RTN.
+           PERFORM 110-OPEN-FILES.
+           PERFORM 120-GET-DATE.
+           PERFORM 210-READ-STUDENT-FILE.
+
+       110-OPEN-FILES.
+           OPEN INPUT STUDENT-FILE
+                OUTPUT STUDENT-REPORT.
+
+       120-GET-DATE.
+           ACCEPT WS-CURRENT-DATE FROM DATE YYYYMMDD.
+           MOVE WS-CURRENT-MONTH TO HL-CURRENT-MONTH.
+           MOVE WS-CURRENT-DAY TO HL-CURRENT-DAY.
+           MOVE WS-CURRENT-YEAR TO HL-CURRENT-YEAR.
+
+       200-PROCESS-RECORD-RTN.
+           IF WS-LINE-COUNTER >= WS-LINE-LIMIT
+              PERFORM 220-HEADING-RTN
+           END-IF
+           MOVE ET-EMPLOYEE-NAME TO DL-EMPLOYEE-NAME.
+           MOVE ET-TUITION TO DL-TUITION.
+           PERFORM 230-COMPUTE-REBATE.
+           MOVE WS-REBATE TO DL-REBATE.
+           WRITE PRINT-RECORD-OUT FROM DETAIL-LINE
+              AFTER ADVANCING 1 LINE.
+           ADD 1 TO WS-LINE-COUNTER.
+           PERFORM 210-READ-STUDENT-FILE.
+
+       210-READ-STUDENT-FILE.
+           READ STUDENT-FILE
+               AT END
+                  MOVE 'NO ' TO ARE-THERE-MORE-RECORDS
+           END-READ.
+
+       220-HEADING-RTN.
+           ADD 1 TO WS-PAGE-COUNTER.
+           MOVE WS-PAGE-COUNTER TO HL-PAGE.
+           WRITE PRINT-RECORD-OUT FROM HEADER-01
+               AFTER ADVANCING PAGE.
+           WRITE PRINT-RECORD-OUT FROM HEADER-02
+               AFTER ADVANCING 2 LINES.
+           MOVE SPACES TO PRINT-RECORD-OUT.
+           WRITE PRINT-RECORD-OUT
+               AFTER ADVANCING 1 LINE.
+           MOVE 6 TO WS-LINE-COUNTER.
+
+       230-COMPUTE-REBATE.
+           EVALUATE ET-TUITION
+               WHEN 0 THRU 99
+                 COMPUTE WS-REBATE ROUNDED = 0
+               WHEN 100 THRU 800
+                  COMPUTE WS-REBATE ROUNDED =
+                     ET-TUITION * 0.70
+               WHEN 801 THRU 1300
+                  COMPUTE WS-REBATE ROUNDED =
+                     (800 * 0.7)+((ET-TUITION - 800) * 0.5)
+               WHEN 1301 THRU 1600
+                  COMPUTE WS-REBATE ROUNDED =
+                     (800 * 0.7)+(500 * 0.5)+
+                     ((ET-TUITION - 1300) * 0.3)
+               WHEN OTHER
+                  COMPUTE WS-REBATE = 900
+           END-EVALUATE.
+
+           ADD ET-TUITION TO WS-TUITION-TOTAL.
+           ADD WS-REBATE TO WS-REBATE-TOTAL.
+
+       300-TERMINATION-RTN.
+           PERFORM 305-PRINT-TOTALS.
+           PERFORM 310-CLOSE-FILES.
+
+       305-PRINT-TOTALS.
+           MOVE WS-REBATE-TOTAL TO FL-REBATE.
+           MOVE WS-TUITION-TOTAL TO FL-TUITION.
+           WRITE PRINT-RECORD-OUT FROM FOOTER-LINE
+               AFTER ADVANCING 2 LINES.
+
+       310-CLOSE-FILES.
+           CLOSE STUDENT-FILE
+                 STUDENT-REPORT.

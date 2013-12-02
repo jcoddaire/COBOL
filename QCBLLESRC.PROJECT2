@@ -1,0 +1,176 @@
+       PROCESS APOST.
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.       PROJECT2.
+       AUTHOR.           JACOB CODDAIRE.
+      **********************************************************
+      * This program reads the Customer usage report and       *
+      * outputs a well-formatted Customer Usage Report that    *
+      * includes Account Number, Customer Name, and total usage*
+      **********************************************************
+
+       ENVIRONMENT DIVISION.
+
+       INPUT-OUTPUT SECTION.
+
+       FILE-CONTROL.
+           SELECT CUSTOMER-FILE
+               ASSIGN TO DISK-D0404P.
+
+           SELECT CUSTOMER-USAGE-REPORT
+               ASSIGN TO PRINTER-QPRINT.
+
+       DATA DIVISION.
+
+       FILE SECTION.
+
+       FD CUSTOMER-FILE.
+
+       01 CUSTOMER-RECORD.
+          05 CU-ACCOUNT-NUMBER    PIC 9(5).
+          05 CU-FIRST-NAME        PIC X(10).
+          05 CU-LAST-NAME         PIC X(15).
+          05 CU-STREET-ADDRESS    PIC X(20).
+          05 CU-HOURS-OF-ELECT-USED PIC 9(5)  PACKED-DECIMAL.
+          05 CU-GAS-USED          PIC 9(5)    PACKED-DECIMAL.
+          05 CU-ELECTRICITY-BILL  PIC 9(3)V99 PACKED-DECIMAL.
+          05 CU-GAS-BILL          PIC 9(3)V99 PACKED-DECIMAL.
+
+       FD CUSTOMER-USAGE-REPORT.
+
+       01  PRINT-RECORD-OUT        PIC X(80).
+
+       WORKING-STORAGE SECTION.
+
+       01  WS-CONTROL-FIELDS.
+           05 ARE-THERE-MORE-RECORDS PIC X(3) VALUE 'YES'.
+           05 WS-LINE-COUNTER   PIC 9(3) PACKED-DECIMAL
+                                         VALUE 60.
+           05 WS-LINE-LIMIT     PIC 9(3) PACKED-DECIMAL
+                                         VALUE 60.
+           05 WS-PAGE-COUNTER   PIC 9(3) PACKED-DECIMAL
+                                         VALUE ZERO.
+       01  WS-CURRENT-DATE.
+           05 WS-CURRENT-YEAR       PIC 9(4).
+           05 WS-CURRENT-MONTH      PIC 9(2).
+           05 WS-CURRENT-DAY        PIC 9(2).
+
+       01  HEADER-01.
+           05 PIC X(4) VALUE SPACES.
+           05 HL-CURRENT-MONTH      PIC 9(2).
+           05                       PIC X     VALUE '/'.
+           05 HL-CURRENT-DAY        PIC 9(2).
+           05                       PIC X     VALUE '/'.
+           05 HL-CURRENT-YEAR       PIC 9(4).
+           05                       PIC X(10) VALUE SPACES.
+           05 HL-REPORT-NAME        PIC X(41) VALUE
+               'CUSTOMER ELECTRICITY AND GAS USAGE REPORT'.
+           05                       PIC X(6) VALUE SPACES.
+           05                       PIC X(6) VALUE 'PAGE: '.
+           05 HL-PAGE               PIC Z9   VALUE ZERO.
+
+       01  HEADER-02.
+           05 PIC X(35) VALUE SPACES.
+           05 PIC X(14) VALUE 'JACOB CODDAIRE'.
+
+       01  HEADER-03.
+           05 PIC X(4)  VALUE SPACES.
+           05 PIC X(7)  VALUE 'ACCOUNT'.
+           05 PIC X(32) VALUE SPACES.
+           05 PIC X(5) VALUE 'ELECT'.
+           05 PIC X(5)  VALUE SPACES.
+           05 PIC X(5)  VALUE 'ELECT'.
+           05 PIC X(7)  VALUE SPACES.
+           05 PIC X(3)  VALUE 'GAS'.
+           05 PIC X(9)  VALUE SPACES.
+           05 PIC X(3)  VALUE 'GAS'.
+
+       01  HEADER-04.
+           05 PIC X(4) VALUE SPACES.
+           05 PIC X(6) VALUE 'NUMBER'.
+           05 PIC X(5) VALUE SPACES.
+           05 PIC X(13) VALUE 'CUSTOMER NAME'.
+           05 PIC X(16) VALUE SPACES.
+           05 PIC X(4) VALUE 'USED'.
+           05 PIC X(6) VALUE SPACES.
+           05 PIC X(4) VALUE 'BILL'.
+           05 PIC X(6) VALUE SPACES.
+           05 PIC X(4) VALUE 'USED'.
+           05 PIC X(8) VALUE SPACES.
+           05 PIC X(4) VALUE 'BILL'.
+
+       01  DETAIL-LINE.
+           05                     PIC X(4) VALUE SPACES.
+           05 DL-ACCOUNT-NUMBER   PIC 9(5).
+           05                     PIC X(6) VALUE SPACES.
+           05 DL-FIRST-NAME       PIC X(10).
+           05                     PIC X(1) VALUE SPACES.
+           05 DL-LAST-NAME        PIC X(15).
+           05                     PIC X(1) VALUE SPACES.
+           05 DL-HOURS-OF-ELECT-USED PIC ZZ,ZZ9.
+           05                     PIC X(3) VALUE SPACES.
+           05 DL-ELECTRICITY-BILL PIC $,$$$.99-.
+           05                     PIC X(3) VALUE SPACES.
+           05 DL-GAS-USED         PIC ZZ,ZZ9.
+           05                     PIC X(3) VALUE SPACES.
+           05 DL-GAS-BILL         PIC $,$$$.99-.
+
+       PROCEDURE DIVISION.
+
+       000-MAIN-MODULE.
+
+           ACCEPT WS-CURRENT-DATE FROM DATE YYYYMMDD.
+           MOVE WS-CURRENT-MONTH TO HL-CURRENT-MONTH.
+           MOVE WS-CURRENT-DAY TO HL-CURRENT-DAY.
+           MOVE WS-CURRENT-YEAR TO HL-CURRENT-YEAR.
+           PERFORM 100-INITIALIZE-RTN.
+           PERFORM 210-READ-CUSTOMER-FILE.
+           PERFORM 200-PROCESS-RECORD-RTN
+               UNTIL ARE-THERE-MORE-RECORDS = 'NO '.
+           PERFORM 300-TERMINATION-RTN.
+           STOP RUN.
+
+       100-INITIALIZE-RTN.
+           OPEN INPUT CUSTOMER-FILE
+                OUTPUT CUSTOMER-USAGE-REPORT.
+
+       200-PROCESS-RECORD-RTN.
+           MOVE CU-ACCOUNT-NUMBER TO DL-ACCOUNT-NUMBER.
+           MOVE CU-FIRST-NAME TO DL-FIRST-NAME.
+           MOVE CU-LAST-NAME TO DL-LAST-NAME.
+           MOVE CU-HOURS-OF-ELECT-USED TO DL-HOURS-OF-ELECT-USED.
+           MOVE CU-GAS-USED TO DL-GAS-USED.
+           MOVE CU-ELECTRICITY-BILL TO DL-ELECTRICITY-BILL.
+           MOVE CU-GAS-BILL TO DL-GAS-BILL.
+           IF WS-LINE-COUNTER >= WS-LINE-LIMIT
+              PERFORM 220-HEADING-RTN
+           END-IF
+           WRITE PRINT-RECORD-OUT FROM DETAIL-LINE
+              AFTER ADVANCING 1 LINE.
+           ADD 1 TO WS-LINE-COUNTER.
+           PERFORM 210-READ-CUSTOMER-FILE.
+
+       210-READ-CUSTOMER-FILE.
+           READ CUSTOMER-FILE
+               AT END
+                  MOVE 'NO ' TO ARE-THERE-MORE-RECORDS
+           END-READ.
+
+       220-HEADING-RTN.
+           ADD 1 TO WS-PAGE-COUNTER.
+           MOVE WS-PAGE-COUNTER TO HL-PAGE.
+           WRITE PRINT-RECORD-OUT FROM HEADER-01
+               AFTER ADVANCING PAGE.
+           WRITE PRINT-RECORD-OUT FROM HEADER-02
+               AFTER ADVANCING 1 LINE.
+           WRITE PRINT-RECORD-OUT FROM HEADER-03
+               AFTER ADVANCING 2 LINES.
+           WRITE PRINT-RECORD-OUT FROM HEADER-04
+               AFTER ADVANCING 1 LINE.
+           MOVE SPACES TO PRINT-RECORD-OUT.
+           WRITE PRINT-RECORD-OUT
+               AFTER ADVANCING 1 LINE.
+           MOVE 6 TO WS-LINE-COUNTER.
+
+       300-TERMINATION-RTN.
+           CLOSE CUSTOMER-FILE
+                 CUSTOMER-USAGE-REPORT.

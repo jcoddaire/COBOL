@@ -1,0 +1,88 @@
+       PROCESS APOST.
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. PROJECT1.
+
+      **********************************************************
+      * This program reads the Employee Pay file and prints a  *
+      * listing containing the Employee Number, Employee Last  *
+      * Name and Hours Worked.                                 *
+      **********************************************************
+
+       ENVIRONMENT DIVISION.
+
+       INPUT-OUTPUT SECTION.
+
+       FILE-CONTROL.
+           SELECT EMPLOYEE-PAY-FILE
+               ASSIGN TO DISK-EMPPAYPF.
+
+           SELECT HOURS-WORKED-REPORT-FILE
+               ASSIGN TO PRINTER-QPRINT.
+
+       DATA DIVISION.
+
+       FILE SECTION.
+
+       FD EMPLOYEE-PAY-FILE
+           RECORD CONTAINS 55 CHARACTERS.
+
+       01  EMPLOYEE-PAY-RECORD.
+           05    EP-EMPLOYEE-NUMBER     PIC 9(9).
+           05    EP-STORE-NUMBER        PIC 9(4).
+           05    EP-FIRST-NAME          PIC X(15).
+           05    EP-MIDDLE-INITIAL      PIC X(1).
+           05    EP-LAST-NAME           PIC X(15).
+           05    EP-DEPARTMENT          PIC 9(3).
+           05    EP-HOURLY-RATE         PIC 9(3)V99 PACKED-DECIMAL.
+           05    EP-HOURS-WORKED        PIC 9(2)V9  PACKED-DECIMAL.
+           05    EP-SALES               PIC 9(5)    PACKED-DECIMAL.
+
+       FD  HOURS-WORKED-REPORT-FILE
+           RECORD CONTAINS 80 CHARACTERS.
+
+       01  PRINT-RECORD-OUT.
+           05                        PIC X(10).
+           05  DL-EMPLOYEE-NUMBER    PIC 9(9).
+           05                        PIC X(5).
+           05  DL-LAST-NAME          PIC X(15).
+           05                        PIC X(5).
+           05  DL-HOURS-WORKED       PIC 9(2).9.
+           05                        PIC X(32).
+
+       WORKING-STORAGE SECTION.
+
+       01  WS-CONTROL-FIELDS.
+           05 ARE-THERE-MORE-RECORDS     PIC X(3)     VALUE   'YES'.
+
+       PROCEDURE DIVISION.
+
+       000-MAIN-MODULE.
+
+           PERFORM 100-INITIALIZE-RTN.
+           PERFORM 210-READ-EMPLOYEE-FILE.
+           PERFORM 200-PROCESS-RECORD-RTN
+               UNTIL ARE-THERE-MORE-RECORDS = 'NO '.
+           PERFORM 300-TERMINATION-RTN.
+           STOP RUN.
+
+       100-INITIALIZE-RTN.
+           OPEN INPUT EMPLOYEE-PAY-FILE
+                OUTPUT HOURS-WORKED-REPORT-FILE.
+
+       200-PROCESS-RECORD-RTN.
+           MOVE SPACES TO PRINT-RECORD-OUT.
+           MOVE EP-EMPLOYEE-NUMBER TO DL-EMPLOYEE-NUMBER.
+           MOVE EP-LAST-NAME TO DL-LAST-NAME.
+           MOVE EP-HOURS-WORKED TO DL-HOURS-WORKED.
+           WRITE PRINT-RECORD-OUT.
+           PERFORM 210-READ-EMPLOYEE-FILE.
+
+       210-READ-EMPLOYEE-FILE.
+           READ EMPLOYEE-PAY-FILE
+               AT END
+                  MOVE 'NO ' TO ARE-THERE-MORE-RECORDS
+           END-READ.
+
+       300-TERMINATION-RTN.
+           CLOSE EMPLOYEE-PAY-FILE
+                 HOURS-WORKED-REPORT-FILE.

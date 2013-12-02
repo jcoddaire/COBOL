@@ -1,0 +1,26 @@
+             /*************************************************/
+             /*  PROJECT 6 CONTROL LANGUAGE PROGRAM           */
+             /*  STARTER CL PROGRAM FOR CIS253 PROJECT 6      */
+             /*                                               */
+             /*  CHANGE YOURLB TO YOUR LIBRARY NAME           */
+             /*************************************************/
+             PGM
+             MONMSG     MSGID(CPF0000) /* Global message handler */
+             /*                                               */
+             /* REFRESH THE MASTER FILE                       */
+             CPYF       FROMFILE(CIS253LB/P6ITEMMAST) +
+                          TOFILE(CODDAIRJLB/P6ITEMMAST) +
+                          MBROPT(*REPLACE)
+             /*                                               */
+             /* PRINT ITEM MASTER BEFORE UPDATE               */
+             CPYF       FROMFILE(CODDAIRJLB/P6ITEMMAST) TOFILE(*PRINT)
+             /*                                               */
+             /* EXECUTE PROJECT 6 COBOL PROGRAM               */
+             CALL       PGM(CODDAIRJLB/PROJECT6)
+             /*                                               */
+             /* PRINT ITEM MASTER AFTER UPDATE                */
+             CPYF       FROMFILE(CODDAIRJLB/P6ITEMMAST) TOFILE(*PRINT)
+             /*                                               */
+             /* PRINT ITEM TRANSACTION FILE                   */
+             CPYF       FROMFILE(*LIBL/P6ITEMTRAN) TOFILE(*PRINT)
+             ENDPGM

@@ -1,7 +1,8 @@
        PROCESS APOST.
        IDENTIFICATION DIVISION.
-       PROGRAM-ID. PROJECT1.
 
+       PROGRAM-ID. 	PROJECT1.
+       AUTHOR.		JACOB CODDAIRE.
       **********************************************************
       * This program reads the Employee Pay file and prints a  *
       * listing containing the Employee Number, Employee Last  *
